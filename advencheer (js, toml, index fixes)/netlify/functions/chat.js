@@ -1,4 +1,3 @@
-// netlify/functions/chat.js
 import OpenAI from "openai";
 
 const corsHeaders = {
@@ -9,12 +8,10 @@ const corsHeaders = {
 };
 
 export async function handler(event) {
-  // CORS preflight (useful when not using `netlify dev`)
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers: corsHeaders, body: "" };
   }
 
-  // Only allow POST
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
@@ -29,57 +26,37 @@ export async function handler(event) {
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    let prompt;
-    if (city && num_days) {
-      const systemText = `Inputs expected:
+    // Build one clean system + user prompt string
+    const systemText = `You are a helpful travel assistant for AdvenCheers Travel.
+Always be friendly, informative, and end responses with "- Enjoy your next ADVEN-CHEER!"`;
+
+    const promptString =
+      city && num_days
+        ? `${systemText}
+
+Inputs expected:
 City Name
 Number of Days
 
 Output:
 Trip Plan: Day-by-day, 2–3 highlights per day, each with a short "why it's interesting." Tone: fast, casual, cheerful, with a bit of British flair ("brilliant," "worth a look").
-Reddit Gems: Pull 2–3 highly upvoted (>100) tips from Reddit (subreddit first, or top posts if no subreddit). Write them like a mate passing tips along ("One Redditor swore by this…").
+Reddit Gems: Pull 2–3 highly upvoted (>100) tips from Reddit (subreddit first, or top posts if no subreddit). Write them like a mate passing tips along ("One Redditor swore by this...").
 
-Sign off all messages with 
-- Enjoy your next ADVEN-CHEER!`;
+Help me plan a trip for ${num_days} days in ${city}.`
+        : `${systemText}
 
-      prompt = [
-        { role: "system", content: systemText },
-        { role: "user", content: `Help me plan a trip for ${num_days} days in ${city}` }
-      ];
-    } else if (message) {
-      const systemText = `You are a helpful travel assistant for AdvenCheers Travel. You help users plan amazing travel experiences with enthusiasm and expertise. Always be friendly, informative, and end responses with "- Enjoy your next ADVEN-CHEER!"`;
-
-      prompt = [
-        { role: "system", content: systemText },
-        { role: "user", content: message }
-      ];
-    } else {
-      return {
-        statusCode: 400,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: "Either 'message' or both 'city' and 'num_days' are required" })
-      };
-    }
-
-    const formattedInput = prompt.map((msg) => ({
-      role: msg.role,
-      content: [{ type: "input_text", text: msg.content }]
-    }));
+${message || "Plan a 3-day city break with highlights and local tips."}`;
 
     const completion = await openai.responses.create({
       model: "gpt-4o",
-      input: formattedInput,
+      input: promptString,
       temperature: 1,
       max_output_tokens: 1200
     });
 
     const reply = completion.output_text?.trim() || "Sorry, I didn't catch that.";
 
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: JSON.stringify({ reply })
-    };
+    return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ reply }) };
   } catch (error) {
     console.error("Chat function error:", error);
     const errorMessage =
@@ -89,10 +66,6 @@ Sign off all messages with
         ? "We've reached our API limit. Please try again later."
         : "I'm having trouble connecting right now. Please try again later.";
 
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: errorMessage })
-    };
+    return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: errorMessage }) };
   }
 }
