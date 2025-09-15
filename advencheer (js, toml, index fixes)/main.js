@@ -199,8 +199,10 @@ function handleSendMessage() {
 
 // Event listeners with null checks
 if (messageInput) {
-    messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
+    messageInput.addEventListener('keydown', (e) => {
+        if (e.isComposing || e.keyCode === 229) return; // IME in progress
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
             handleSendMessage();
         }
     });
