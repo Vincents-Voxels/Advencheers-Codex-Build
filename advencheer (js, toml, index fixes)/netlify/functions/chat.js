@@ -61,14 +61,19 @@ Sign off all messages with
       };
     }
 
-    const completion = await openai.chat.completions.create({
+    const formattedInput = prompt.map((msg) => ({
+      role: msg.role,
+      content: [{ type: "input_text", text: msg.content }]
+    }));
+
+    const completion = await openai.responses.create({
       model: "gpt-4o",
-      messages: prompt,
+      input: formattedInput,
       temperature: 1,
-      max_tokens: 1200
+      max_output_tokens: 1200
     });
 
-    const reply = completion.choices?.[0]?.message?.content?.trim() || "Sorry, I didn't catch that.";
+    const reply = completion.output_text?.trim() || "Sorry, I didn't catch that.";
 
     return {
       statusCode: 200,
