@@ -21,6 +21,7 @@ export async function handler(event) {
   }
 
   try {
+    console.log("KEY?", !!process.env.OPENAI_API_KEY, "NODE", process.version);
     const body = JSON.parse(event.body || "{}");
     const { message, city, num_days } = body;
 
@@ -59,12 +60,15 @@ ${message || "Plan a 3-day city break with highlights and local tips."}`;
     return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ reply }) };
   } catch (error) {
     console.error("Chat function error:", error);
-    const errorMessage =
-      error?.message?.toLowerCase().includes("key")
-        ? "There's an issue with our API configuration."
-        : error?.message?.toLowerCase().includes("quota")
-        ? "We've reached our API limit. Please try again later."
-        : "I'm having trouble connecting right now. Please try again later.";
+    let errorMessage = "I'm having trouble connecting right now. ";
+
+    if (error?.message?.includes("API quota")) {
+      errorMessage += "It looks like we've reached our API limit. Please try again later.";
+    } else if (error?.message?.includes("Invalid API key")) {
+      errorMessage += "There's an issue with our API configuration.";
+    } else {
+      errorMessage += "Please check your connection and try again, or let me know if you'd like some general travel tips!";
+    }
 
     return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: errorMessage }) };
   }
